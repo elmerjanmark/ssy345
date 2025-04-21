@@ -57,7 +57,7 @@ for i = 1:length(k_vals)
     k = k_vals(i);
     err_mean = x(k) - X(k);          % Estimation error
     err_std = sqrt(P(:,:,k));        % Standard deviation at time k
-    pdf_vals = normpdf(x_vals, err_mean, err_std);
+    pdf_vals = normpdf(x_vals, 0, err_std);
 
     plot(x_vals, pdf_vals, 'Color', colors(i), 'DisplayName', ['k = ' num2str(k)])
 end
@@ -136,7 +136,6 @@ true_v0 = 0;
 true_v10 = 10;
 true_v20 = 20;
 
-C_v0 = mean(v0) / true_v0;
 C_v10 = mean(v10) / true_v10;
 C_v20 = mean(v20) / true_v20;
 
@@ -179,5 +178,115 @@ ylabel('Velocity (m/s)');
 legend;
 
 
-%% 
+C_est = C;  % estimated C
 
+noise10 = mvnrnd(0, var_rv_v10, 2000)';
+noise20 = mvnrnd(0, var_rv_v20, 2000)';
+
+% generate using model yv_k = C(v_k + rv_k)
+fakeTrainSpeed10 = C_est * (10 + noise10);
+fakeTrainSpeed20 = C_est * (20 + noise20);
+
+% Plot and compare
+figure
+subplot(2,1,1)
+plot(fakeTrainSpeed20, 'DisplayName', 'Generated (v=20)')
+hold on
+plot(v20, 'DisplayName', 'Measured (v=20)')
+legend
+xlabel('Sample')
+ylabel('Speed (m/s)')
+grid on
+
+subplot(2,1,2)
+plot(fakeTrainSpeed10, 'DisplayName', 'Generated (v=10)')
+hold on
+plot(v10, 'DisplayName', 'Measured (v=10)')
+legend
+xlabel('Sample')
+ylabel('Speed (m/s)')
+grid on
+
+
+%% 2b
+
+Y_seq = Generate_y_seq;
+Y_seq(2,:) = Y_seq(2,:)/C;
+
+%% Constant velocity model
+
+T = 0.1;
+var_p = 3;
+var_rv = var_rv;
+q_cv = 0.05;
+
+A_cv = [1 T; 0 1];
+
+H = [1  0;
+     0  1];
+
+Q_cv = 0.001*[0 0; 0 1];
+% G_cv = [0.5*T^2; T];          % Noise gain matrix for CV
+% Q_cv = G_cv * G_cv' * q_cv;
+
+R_cv = diag([var_p, var_rv]);
+
+
+x_0 = [0; 0];
+P_0_cv = diag([var_p, var_rv]);
+
+[x_c, P_c] = kalmanFilter(Y_seq, x_0, P_0_cv, A_cv, Q_cv, H, R_cv);
+
+
+figure
+plot(x_c(1, :), LineWidth=3)
+hold on
+grid on
+plot(find(~isnan(Y_seq(1, :))), Y_seq(1, ~isnan(Y_seq(1, :))), '--k', LineWidth=3);
+legend('estimated position', 'measured position')
+
+figure
+plot(x_c(2, :))
+hold on
+grid on
+plot(Y_seq(2,:))
+legend('estimated velocity', 'measured velocity')
+
+
+%% CA
+% q_ca = 0.5;
+x_0_ca = [0;0;0];
+
+A_ca = [1 T 0.5*T^2;
+        0 1 T;
+        0 0 1];
+
+% Measurement Matrix (measures position and velocity, not acceleration)
+H_ca = [1 0 0;
+        0 1 0];
+
+% Measurement Noise Covariance (same sensor noise as for CV)
+R_ca = diag([var_p, var_rv]);
+
+% G_ca = [T^3/6; T^2/2; T];      % Noise gain matrix for CA
+% Q_ca = G_ca * G_ca' * q_ca;
+Q_ca = 0.001*[0 0 0; 0 0 0; 0 0 1];
+
+P_0_ca = diag([var_p, var_rv, 1.0]);
+
+% Run CA Kalman Filter
+[x_ca, P_ca] = kalmanFilter(Y_seq, x_0_ca, P_0_ca, A_ca, Q_ca, H_ca, R_ca);
+
+figure
+plot(x_ca(1, :), LineWidth=3)
+hold on
+grid on
+plot(find(~isnan(Y_seq(1, :))), Y_seq(1, ~isnan(Y_seq(1, :))), '--k', LineWidth=3);
+legend('estimated position', 'measured position')
+
+figure
+plot(x_ca(2, :))
+hold on
+grid on
+plot(Y_seq(2,:))
+legend('estimated velocity', 'measured velocity')
