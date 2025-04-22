@@ -34,13 +34,16 @@ for k = 1:N
     [x_pred, P_pred] = linearPrediction(x_prev, P_prev, A, Q);
 
     % Update
-    if ~any(isnan(Y(:,k)))
-        [x_upd, P_upd] = linearUpdate(x_pred, P_pred, Y(:,k), H, R);
+    y_k = Y(:,k);
+    if (isnan(y_k(1))) && length(H)>1
+        H_k = H(2,:);
+        R_k = R(2,2);
+        y_k = y_k(2);
     else
-        x_upd = x_pred;
-        P_upd = P_pred;
+        H_k = H;
+        R_k = R;
     end
-
+    [x_upd, P_upd] = linearUpdate(x_pred, P_pred, y_k, H_k, R_k);
 
     x(:,k) = x_upd;
     P(:,:,k) = P_upd;
@@ -49,4 +52,3 @@ for k = 1:N
     x_prev = x_upd;
     P_prev = P_upd;
 end
-

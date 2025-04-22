@@ -139,13 +139,13 @@ true_v20 = 20;
 C_v10 = mean(v10) / true_v10;
 C_v20 = mean(v20) / true_v20;
 
-C = mean([C_v10, C_v20]) % Average C, ignoring NaN from v0
+C = mean([C_v10, C_v20])
 
 
 %residuals
-rv_v0 = v0 - C * true_v0;
-rv_v10 = v10 - C * true_v10;
-rv_v20 = v20 - C * true_v20;
+rv_v0 = v0/C -  true_v0;
+rv_v10 = v10/C - true_v10;
+rv_v20 = v20/C -  true_v20;
 
 var_rv_v0 = var(rv_v0);
 var_rv_v10 = var(rv_v10);
@@ -211,12 +211,12 @@ grid on
 %% 2b
 
 Y_seq = Generate_y_seq;
-Y_seq(2,:) = Y_seq(2,:)/C;
+Y_seq(2,:) = Y_seq(2,:)/C; %scale the velocity
 
-%% Constant velocity model
+%% Constant velocity model C
 
 T = 0.1;
-var_p = 3;
+var_p = 1;
 var_rv = var_rv;
 q_cv = 0.05;
 
@@ -225,9 +225,7 @@ A_cv = [1 T; 0 1];
 H = [1  0;
      0  1];
 
-Q_cv = 0.001*[0 0; 0 1];
-% G_cv = [0.5*T^2; T];          % Noise gain matrix for CV
-% Q_cv = G_cv * G_cv' * q_cv;
+Q_cv = 0.01*[T^3/3 T^2/2; T^2/2 T];
 
 R_cv = diag([var_p, var_rv]);
 
@@ -250,7 +248,7 @@ plot(x_c(2, :))
 hold on
 grid on
 plot(Y_seq(2,:))
-legend('estimated velocity', 'measured velocity')
+legend('estimated velocity', 'measured scaled velocity')
 
 
 %% CA
@@ -268,9 +266,9 @@ H_ca = [1 0 0;
 % Measurement Noise Covariance (same sensor noise as for CV)
 R_ca = diag([var_p, var_rv]);
 
-% G_ca = [T^3/6; T^2/2; T];      % Noise gain matrix for CA
-% Q_ca = G_ca * G_ca' * q_ca;
-Q_ca = 0.001*[0 0 0; 0 0 0; 0 0 1];
+Q_ca = 0.01*[T^5/20  T^4/8  T^3/6;
+            T^4/8   T^3/3  T^2/2;
+            T^3/6   T^2/2  T];
 
 P_0_ca = diag([var_p, var_rv, 1.0]);
 
@@ -285,8 +283,8 @@ plot(find(~isnan(Y_seq(1, :))), Y_seq(1, ~isnan(Y_seq(1, :))), '--k', LineWidth=
 legend('estimated position', 'measured position')
 
 figure
-plot(x_ca(2, :))
+plot(Y_seq(2,:),'r')
 hold on
 grid on
-plot(Y_seq(2,:))
-legend('estimated velocity', 'measured velocity')
+plot(x_ca(2, :),'b', LineWidth=2)
+legend( 'measured scaled velocity','estimated velocity')
