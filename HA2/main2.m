@@ -101,7 +101,7 @@ prio = normpdf(x_values, x(k-1), sigma_x(k-1));
 pred = normpdf(x_values, x_p, sqrt(P_p));
 
 % measurement
-meas = normpdf(x_values, Y(k), R);
+% meas = normpdf(x_values, Y(k), R);
 
 %update
 [x_u, P_u] = linearUpdate(x_p, P_p, Y(k), H, R);
