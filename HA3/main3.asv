@@ -173,9 +173,9 @@ for i = 1:2
     scatter(y_samples(1,:), y_samples(2,:), 5, 'filled', 'DisplayName', 'Samples (y)');
 
     % Plot sample mean
-    plot(y_mean_mc(1), y_mean_mc(2), 'kx', 'MarkerSize', 20, 'LineWidth', 2, 'DisplayName', 'Mean (MC)');
+    plot(y_mean_mc(1), y_mean_mc(2), 'kx', 'MarkerSize', 10, 'LineWidth', 2, 'DisplayName', 'Mean (MC)');
     xy = sigmaEllipse2D(y_mean_mc, y_p_mc, 3, 100);
-    plot(xy(1,:), xy(2,:), 'LineWidth', 2, 'DisplayName', 'SigmaEllipse samples');
+    plot(xy(1,:), xy(2,:), 'LineWidth', 2, 'DisplayName', 'SigmaEllipse monte carlo');
 
     % Plot EKF approximated mean
     plot(y_mean_ekf_val(1), y_mean_ekf_val(2), 'mo', 'MarkerSize', 8, 'LineWidth', 2, 'DisplayName', 'Mean (EKF)');
@@ -188,7 +188,7 @@ for i = 1:2
     plot(xy(1,:), xy(2,:),'--','LineWidth', 2, 'DisplayName', 'SigmaEllipse UKF');
 
     % Plot propagated sigma points (UKF)
-    scatter(SP_y_ukf(1,:), SP_y_ukf(2,:), 40, 'MarkerFaceColor','r', 'DisplayName', 'Sigma Points (UKF)');
+    scatter(SP_y_ukf(1,:), SP_y_ukf(2,:), 40, 'r','filled', 'DisplayName', 'Sigma Points (UKF)');
     legend;
     hold off;
 end
