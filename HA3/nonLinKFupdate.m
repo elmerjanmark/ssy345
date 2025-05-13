@@ -27,8 +27,8 @@ function [x, P] = nonLinKFupdate(x, P, y, h, R, type)
             S = Hx*P*Hx' + R;
             K = P*Hx'*inv(S);
             
-            P = P - K*S*K'
-            x = x + K*(y - hx)
+            P = P - K*S*K';
+            x = x + K*(y - hx);
         case 'UKF'
             [SP,W] = sigmaPoints(x, P, type);
             

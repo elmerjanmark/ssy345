@@ -55,10 +55,10 @@ for i = 1:2
     disp('===================================================================================')
         
     figure()
-    subplot(1,2,1); hold on; axis equal; grid on;
+    subplot(1,2,1); hold on; grid on;
 
     title(sprintf('Dual-Bearing Uncertainty (Ns = %d)', Ns));
-        xlabel('Bearing 1 (rad)');
+    xlabel('Bearing 1 (rad)');
     ylabel('Bearing 2 (rad)');
 
     % Plot samples
@@ -72,7 +72,7 @@ for i = 1:2
 
     legend show
 
-    subplot(1,2,2); hold on; axis equal; grid on;
+    subplot(1,2,2); hold on; grid on;
 
     title(sprintf('Dual-Bearing Uncertainty (Ns = %d)', Ns));
     xlabel('Bearing 1 (rad)');
@@ -164,7 +164,7 @@ for i = 1:2
     end
 
     figure();
-    hold on; axis equal; grid on;
+    hold on; grid on;
     title(sprintf('Measurement - %s', title_str));
     xlabel('Bearing 1 (rad)');
     ylabel('Bearing 2 (rad)');
@@ -196,59 +196,154 @@ end
 
 
 %% 2
-f = @(x) coordinatedTurnMotion(x, T);
-h = @(x) dualBearingMeasurement(x, s1, s2);
-
+clear all;
+rng(2)
 T = 1;
-
-sigma_v2 = 0.3^2;                    % Translational velocity noise
-sigma_omega2 = (0.3*pi/180)^2;       % Turn rate noise
-sigma_phi2 = (0.1*pi/180)^2;         % Bearing noise
-
-
-Q = diag([0, 0, sigma_v2, sigma_omega2, 0]);
-
-R = sigma_phi2 * eye(2);
-
 s1 = [-50; 0];
 s2 = [50; 0];
 
-x0 = [0; 200; 2; 0; 0];
+f = @(x) coordinatedTurnMotion(x, T);
+h = @(x) dualBearingMeasurement(x, s1, s2);
+
+
+sigma_v2 = 0.3^2;                  
+sigma_omega2 = (0.3*pi/180)^2;    
+sigma_phi2 = (0.1*pi/180)^2;       
+
+
+Q = diag([0, 0, sigma_v2, 0, sigma_omega2]);
+
+R = sigma_phi2 * eye(2);
+
+% x0 = [0; 200; 2; 0; 0];
+x0 = [200; 50; 2; 0; 0];
 P0 = diag([(5/3)^2, (5/3)^2, 2^2, (0.1*pi/180)^2, (0.1*pi/180)^2]);
 
 N = 100;
 
 x_true = genNonLinearStateSequence(x0, P0, f, Q, N);
-
 y_meas = genNonLinearMeasurementSequence(x_true, h, R);
 
 [xf_EKF, Pf_EKF, ~, ~] = nonLinearKalmanFilter(y_meas, x0, P0, f, Q, h, R, 'EKF');
 [xf_UKF, Pf_UKF, ~, ~] = nonLinearKalmanFilter(y_meas, x0, P0, f, Q, h, R, 'UKF');
 
 
-figure; hold on; axis equal; grid on;
-title('True Path, EKF & UKF Estimates with 3σ Ellipses');
+for i = 1:length(y_meas)
+    [x_mes(:,i), y_mes(:,i)] = getPosFromMeasurement(y_meas(1,i), y_meas(2,i), s1, s2);
+end
+
+figure; hold on; grid on;
+title('True Path,Measurement, EKF & UKF Estimates with 3σ Ellipses');
 xlabel('x [m]'); ylabel('y [m]');
 
 % Plot true trajectory
-plot(x_true(1,:), x_true(2,:), 'k-', 'DisplayName', 'True Path');
+plot(x_true(1,:), x_true(2,:), 'k', 'LineWidth',1.2);
+plot(x_mes, y_mes, 'LineWidth', 1.2);
 
-% Plot EKF estimate
-plot(xf_EKF(1,:), xf_EKF(2,:), 'b--', 'DisplayName', 'EKF Estimate');
-for k = 1:10:N
-    C = sigmaEllipse2D(xf_EKF(1:2,k), Pf_EKF(1:2,1:2,k), 3, 50);
-    plot(C(1,:), C(2,:));
-end
 
-% Plot UKF estimate
-plot(xf_UKF(1,:), xf_UKF(2,:), 'g--', 'DisplayName', 'UKF Estimate');
-for k = 1:10:N
-    C = sigmaEllipse2D(xf_UKF(1:2,k), Pf_UKF(1:2,1:2,k), 3, 50);
-    plot(C(1,:), C(2,:));
+plot(xf_EKF(1,:), xf_EKF(2,:), '--', 'LineWidth', 1.2);
+
+plot(xf_UKF(1,:), xf_UKF(2,:), '-.',  'LineWidth', 1.2);
+
+
+scatter(s1(1), s1(2), 'filled')
+scatter(s2(1), s2(2), 'filled')
+
+for k = 10:10:N
+    xy_ekf = sigmaEllipse2D(xf_EKF(1:2,k), Pf_EKF(1:2,1:2,k), 3, 50);
+    plot(xy_ekf(1,:), xy_ekf(2,:), 'r', 'LineWidth', 1.5);
+
+    xy_ukf = sigmaEllipse2D(xf_UKF(1:2,k), Pf_UKF(1:2,1:2,k), 3, 50);
+    plot(xy_ukf(1,:), xy_ukf(2,:), 'b--', 'LineWidth', 1.5);
 end
 
 % Plot sensors
-plot(-50, 0, 'ro', 'MarkerFaceColor', 'r', 'DisplayName', 'Sensor 1');
-plot(50, 0, 'mo', 'MarkerFaceColor', 'm', 'DisplayName', 'Sensor 2');
+
+
+legend('True states', 'Measurement', 'EKF Estimate', 'UKF Estimate', 'sensor 1', 'sensor 2' , '3σ EKF', '3σ UKF')
+
+
+%% c
+
+x0_all = [[0; 200; 2; 0; 0],[200; 50; 2; 0; 0]];
+
+for i = 1:2
+    x0 = x0_all(:,i);
+    err_x_EKF = []; 
+    err_y_EKF = [];
+    err_x_UKF = []; 
+    err_y_UKF = [];
+
+    for k = 1:100
+        %generate
+        X = genNonLinearStateSequence(x0, P0, f, Q, N);
+        Y = genNonLinearMeasurementSequence(X, h, R);
+
+        [xf_EKF,Pf_EKF,~,~] = nonLinearKalmanFilter(Y, x0, P0, f, Q, h, R, 'EKF');
+        [xf_UKF,Pf_UKF,~,~] = nonLinearKalmanFilter(Y, x0, P0, f, Q, h, R, 'UKF');
+
+        err_x_EKF = [err_x_EKF, xf_EKF(1,:) - X(1,2:end)];
+        err_y_EKF = [err_y_EKF, xf_EKF(2,:) - X(2,2:end)];
+
+        err_x_UKF = [err_x_UKF, xf_UKF(1,:) - X(1,2:end)];
+        err_y_UKF = [err_y_UKF, xf_UKF(2,:) - X(2,2:end)];
+    end
+
+    mean_errx_EKF = mean(err_x_EKF);
+    mean_erry_EKF = mean(err_y_EKF);
+    mean_errx_UKF = mean(err_x_EKF);
+    mean_erry_UKF = mean(err_y_EKF);
+
+    sigma_errx_EKF = sqrt(var(err_x_EKF));
+    sigma_erry_EKF = sqrt(var(err_y_EKF));
+    sigma_errx_UKF = sqrt(var(err_x_UKF));
+    sigma_erry_UKF = sqrt(var(err_y_UKF));
+    
+        
+    figure; 
+    titles = {'EKF x-error', 'EKF y-error', 'UKF x-error', 'UKF y-error'};
+    errors = {err_x_EKF, err_y_EKF, err_x_UKF, err_y_UKF};
+
+    for j = 1:4
+        subplot(2,2,j); hold on; grid on;
+        e = errors{j};
+        histogram(e, 'Normalization', 'pdf');
+
+        mu = mean(e);
+        sigma = std(e);
+
+        x_vals = linspace(mu - 4*sigma, mu + 4*sigma, 100);
+
+        plot(x_vals, normpdf(x_vals, mu, sigma), 'r', 'LineWidth', 2);
+        xline(mu, '--y', 'LineWidth', 1.5);
+        title(sprintf('Case %d %s', i, titles{j}));
+        legend('Calculated', 'Gaussian fit', 'Mean');
+        xlim([mu - 4*sigma, mu + 4*sigma])
+    end
+
+
+end
+
+
+%%  3
+
+
+T = 0.1;
+K = 800;
+omega = zeros(1,K+1);
+omega(200:350) = pi/301/T;
+omega(450:600) = pi/301/T; 
+% Initial state 
+x0 = [0 0 20 -pi/2 0]'; 
+% Allocate memory 
+X = zeros(length(x0),K+1); 
+X(:,1) = x0; 
+% Create true track 
+for i=2:K+1 
+    % Simulate 
+    X(:,i) = coordinatedTurnMotion(X(:,i-1), T); 
+    % Set turn−rate 
+    X(5,i) = omega(i); 
+end
 
 
